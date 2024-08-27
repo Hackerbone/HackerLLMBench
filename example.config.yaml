@@ -1,0 +1,6 @@
+openai_api_key: "your-openai-api-key"
+model_id: "model-id"
+evaluation_file: "evaluation/reconnaissance.jsonl"
+output_dir: "scores"
+log_file: "app.log"
+mistral_endpoint: "your-mistral-endpoint"
