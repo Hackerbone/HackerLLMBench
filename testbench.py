@@ -21,22 +21,27 @@ class ModelScorer:
             json_response_from_ai = json.loads(response_from_ai)
         except (json.JSONDecodeError, TypeError) as error:
             Logger.error(f"[X] Some JSON error has occurred: {error}")
-            return False, False, False
+            return False, False, False, 0  # Added 0 for response time placeholder
 
         is_json_good = self.validate_json(json_response_from_ai, self.get_json_schema())
         if not is_json_good:
-            return False, False, False
+            return False, False, False, 0  # Added 0 for response time placeholder
 
         correct_plugin = benchmark_data["messages"][-2]["expected_plugins"]
         is_plugin_correct = self.validate_plugin(json_response_from_ai, correct_plugin)
         if not is_plugin_correct:
-            return True, False, False
+            return True, False, False, 0  # Added 0 for response time placeholder
 
         correct_command = benchmark_data["messages"][-1]["binaries_used"]
         is_command_running = self.validate_command(
             json_response_from_ai, correct_command
         )
-        return True, is_plugin_correct, is_command_running
+        return (
+            True,
+            is_plugin_correct,
+            is_command_running,
+            1,
+        )  # Added 1 for response time placeholder
 
     @staticmethod
     def validate_json(content, schema):
@@ -186,7 +191,7 @@ class ScoreProcessor:
 
         total_tests = len(scores)
         if total_tests == 0:
-            return 0, 0, 0
+            return 0, 0, 0, 0  # Modified to include 4th metric
 
         # Ensure that all scores have exactly five elements
         valid_scores = [
@@ -194,20 +199,35 @@ class ScoreProcessor:
         ]
 
         if len(valid_scores) == 0:
-            return 0, 0, 0
+            return 0, 0, 0, 0  # Modified to include 4th metric
 
-        accuracy = (
-            sum([int(score[1] and score[2] and score[3]) for score in valid_scores])
-            / total_tests
+        # Calculate Structural Accuracy
+        structural_accuracy = (
+            sum([int(score[1]) for score in valid_scores]) / total_tests
         )
-        consistency = (
+
+        # Calculate Functional Correctness
+        functional_correctness = (
             sum([int(score[2] and score[3]) for score in valid_scores]) / total_tests
         )
+
+        # Calculate Consistency: Average score across all runs
+        consistency_scores = [
+            int(score[1] and score[2] and score[3]) for score in valid_scores
+        ]
+        consistency = sum(consistency_scores) / len(consistency_scores)
+
+        # Calculate Average Response Time
         avg_response_time = sum([score[4] for score in valid_scores]) / len(
             valid_scores
         )
 
-        return accuracy, consistency, avg_response_time
+        return (
+            structural_accuracy,
+            functional_correctness,
+            consistency,
+            avg_response_time,
+        )
 
     def process_scores(self, model_type, model_id, score):
         model_found = False
@@ -240,6 +260,7 @@ class ScoreProcessor:
         )
         summary_file = os.path.join(output_dir, f"{model_type}_{model_id}_summary.csv")
 
+        # Write detailed file as usual
         with open(detailed_file, "w") as csvfile:
             csvwriter = csv.writer(csvfile)
             csvwriter.writerow(
@@ -258,13 +279,31 @@ class ScoreProcessor:
                     for score in sc[model_type][model_id]:
                         csvwriter.writerow([model_type, model_id] + score)
 
+        # Read existing summary data if it exists
+        existing_scores = {}
+        if os.path.exists(summary_file):
+            with open(summary_file, "r") as csvfile:
+                csvreader = csv.reader(csvfile)
+                next(csvreader)  # Skip header
+                for row in csvreader:
+                    existing_model_type = row[0]
+                    existing_model_id = row[1]
+                    existing_scores[(existing_model_type, existing_model_id)] = {
+                        "Structural Accuracy": float(row[2]),
+                        "Functional Correctness": float(row[3]),
+                        "Consistency": float(row[4]),
+                        "Avg Response Time": float(row[5]),
+                    }
+
+        # Calculate new metrics
         with open(summary_file, "w") as csvfile:
             csvwriter = csv.writer(csvfile)
             csvwriter.writerow(
                 [
                     "Model Type",
                     "Model ID",
-                    "Accuracy",
+                    "Structural Accuracy",
+                    "Functional Correctness",
                     "Consistency",
                     "Avg Response Time",
                 ]
@@ -272,9 +311,25 @@ class ScoreProcessor:
             for sc in self.scores:
                 if model_type in sc and model_id in sc[model_type]:
                     scores = sc[model_type][model_id]
-                    accuracy, consistency, avg_response_time = self.calculate_metrics(
-                        scores
-                    )
+                    (
+                        structural_accuracy,
+                        functional_correctness,
+                        new_consistency,
+                        avg_response_time,
+                    ) = self.calculate_metrics(scores)
+
+                    # Update consistency with averaging if exists
+                    key = (model_type, model_id)
+                    if key in existing_scores:
+                        print("Key found, updating consistency")
+                        existing_consistency = existing_scores[key]["Consistency"]
+                        updated_consistency = (
+                            existing_consistency + new_consistency
+                        ) / 2
+                    else:
+                        print("Key not found, using new consistency")
+                        updated_consistency = new_consistency
+
                     avg_response_time_normalized = (
                         avg_response_time  # Normalizing response time
                     )
@@ -282,8 +337,9 @@ class ScoreProcessor:
                         [
                             model_type,
                             model_id,
-                            accuracy,
-                            consistency,
+                            structural_accuracy,
+                            functional_correctness,
+                            updated_consistency,
                             avg_response_time_normalized,
                         ]
                     )
@@ -298,7 +354,8 @@ class ScoreProcessor:
                 [
                     "Model Type",
                     "Model ID",
-                    "Accuracy",
+                    "Structural Accuracy",
+                    "Functional Correctness",
                     "Consistency",
                     "Avg Response Time",
                 ]
@@ -308,9 +365,12 @@ class ScoreProcessor:
                 model_id = list(model_score[model_type].keys())[0]
                 scores = model_score[model_type][model_id]
 
-                accuracy, consistency, avg_response_time = self.calculate_metrics(
-                    scores
-                )
+                (
+                    structural_accuracy,
+                    functional_correctness,
+                    consistency,
+                    avg_response_time,
+                ) = self.calculate_metrics(scores)
                 avg_response_time_normalized = (
                     avg_response_time  # Normalizing response time
                 )
@@ -319,7 +379,8 @@ class ScoreProcessor:
                     [
                         model_type,
                         model_id,
-                        accuracy,
+                        structural_accuracy,
+                        functional_correctness,
                         consistency,
                         avg_response_time_normalized,
                     ]
@@ -347,7 +408,7 @@ class ScoreProcessor:
             for benchmark_data in tqdm(reader, desc="Processing benchmarks"):
                 line_number += 1
                 gpt_response, response_time = scorer.process_with_model(benchmark_data)
-                json_check, plugin_check, command_check = scorer.check_everything(
+                json_check, plugin_check, command_check, _ = scorer.check_everything(
                     gpt_response, benchmark_data
                 )
                 self.print_scores(
@@ -397,6 +458,8 @@ class OpenAIScorer(ModelScorer):
             presence_penalty=0,
         )
         end_time = time.time()
+
+        time.sleep(1)  # Sleep for 1 second to avoid rate limiting
 
         return response.choices[0].message.content, end_time - start_time
 
@@ -513,13 +576,13 @@ def main():
 
     # Initialize and run model benchmarks
     scorers = [
-        # OpenAIScorer(api_key=config.get("openai_api_key"), model_id="gpt-3.5-turbo"),
-        # OpenAIScorer(api_key=config.get("openai_api_key"), model_id="gpt-4o-mini"),
-        # OpenAIScorer(api_key=config.get("openai_api_key"), model_id="gpt-4o"),
         # OpenAIScorer(api_key=config.get("openai_api_key"), model_id="gpt-4-turbo"),
-        MistralInstructScorer(
-            endpoint_url=config.get("mistral_instruct_endpoint"), model_id="ft-8"
-        ),
+        # OpenAIScorer(api_key=config.get("openai_api_key"), model_id="gpt-4o-mini"),
+        # OpenAIScorer(api_key=config.get("openai_api_key"), model_id="gpt-3.5-turbo"),
+        # OpenAIScorer(api_key=config.get("openai_api_key"), model_id="gpt-4o"),
+        # MistralInstructScorer(
+        #     endpoint_url=config.get("mistral_instruct_endpoint"), model_id="ft-8"
+        # ),
     ]
 
     for scorer in scorers:
@@ -527,6 +590,7 @@ def main():
         score_processor.write_model_scores_to_csv(
             scorer.model_type, scorer.model_id, config.get("output_dir", "scores")
         )
+        time.sleep(5)  # Sleep for 5 seconds between models avoids rate limiting
 
 
 if __name__ == "__main__":

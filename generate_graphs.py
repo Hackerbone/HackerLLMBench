@@ -1,6 +1,8 @@
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
+import numpy as np
+import seaborn as sns
 
 
 def load_summary_data(file_paths):
@@ -15,56 +17,110 @@ def load_summary_data(file_paths):
     return combined_df
 
 
-def plot_comparison_graph(df, output_file="model_comparison_line.png"):
-    """Generate a line chart comparing accuracy, consistency, and response time."""
-    df.set_index("Model ID", inplace=True)
+def plot_radar_chart(df, output_file="model_comparison_radar.png"):
+    """Generate a radar chart comparing Structural Accuracy, Functional Correctness, Consistency, and Avg Response Time."""
+    # Define categories for the radar chart
+    categories = [
+        "Structural Accuracy",
+        "Functional Correctness",
+        "Consistency",
+        "Avg Response Time",
+    ]
+    num_vars = len(categories)
 
-    # Plotting
-    fig, ax = plt.subplots(figsize=(10, 6))
+    # Normalize Avg Response Time to the 0-1 scale for better comparison
+    df["Normalized Response Time"] = (
+        df["Avg Response Time"] - df["Avg Response Time"].min()
+    ) / (df["Avg Response Time"].max() - df["Avg Response Time"].min())
 
-    df.plot(kind="line", marker="o", ax=ax)
+    # Set seaborn style
+    sns.set(style="whitegrid")
 
-    ax.set_title("Model Comparison: Accuracy, Consistency, and Avg Response Time")
-    ax.set_ylabel("Score (0-1 scale)")
-    ax.set_xlabel("Model ID")
-    plt.xticks(rotation=45, ha="right")
+    # Prepare radar chart data
+    fig, ax = plt.subplots(figsize=(8, 8), subplot_kw=dict(polar=True))
 
+    # Define angle for each axis
+    angles = np.linspace(0, 2 * np.pi, num_vars, endpoint=False).tolist()
+    angles += angles[:1]
+
+    # Plot each model's data
+    for i, row in df.iterrows():
+        values = [
+            row["Structural Accuracy"],
+            row["Functional Correctness"],
+            row["Consistency"],
+            row["Normalized Response Time"],
+        ]
+        values += values[:1]  # Repeat the first value to close the circle
+
+        ax.plot(angles, values, label=row["Model ID"], marker="o", linewidth=1.5)
+        ax.fill(angles, values, alpha=0.25)
+
+    # Add labels and title
+    ax.set_title(
+        "Model Comparison",
+        size=16,
+        weight="bold",
+    )
+    plt.xticks(angles[:-1], categories, size=10)
+    plt.yticks([0.2, 0.4, 0.6, 0.8, 1.0], color="grey", size=8)
+    plt.ylim(0, 1)
+
+    # Customize gridlines for a clean look
+    ax.grid(color="gray", linestyle="--", linewidth=0.5)
+
+    # Add legend and save the figure
+    plt.legend(loc="upper right", bbox_to_anchor=(1.2, 1))
     plt.tight_layout()
-    plt.savefig(output_file)
-    # plt.show()  # Removed this line as it's unnecessary in a non-interactive environment
+    plt.savefig(output_file, dpi=300)
 
 
-def plot_winner_graph(df, output_file="model_winner.png"):
-    """Generate a line chart showing models ranked by weighted scores."""
+def plot_winner_line_chart(df, output_file="model_winner_line.png"):
+    """Generate a clean and minimalistic line chart showing models ranked by weighted scores using seaborn."""
     # Normalize Avg Response Time to the 0-1 scale
     df["Normalized Response Time"] = (
         df["Avg Response Time"] - df["Avg Response Time"].min()
     ) / (df["Avg Response Time"].max() - df["Avg Response Time"].min())
 
-    # Calculate a weighted score: 2/5 for accuracy, 2/5 for consistency, and 1/5 for normalized response time
-    df["Score"] = (
-        (2 / 5) * df["Accuracy"]
-        + (2 / 5) * df["Consistency"]
-        + (1 / 5) * df["Normalized Response Time"]
-    )
+    df["Score"] = (df["Structural Accuracy"] + df["Consistency"]) / 2
 
     # Sort the DataFrame by the calculated score (ascending, lower scores are better)
     df_sorted = df.sort_values(by="Score", ascending=True)
 
+    # Set a seaborn style
+    sns.set(style="whitegrid")  # Set a minimalistic style
+
+    # Prepare line chart data
+    plt.figure(figsize=(10, 6))
+
     # Plotting the sorted DataFrame as a line graph
-    fig, ax = plt.subplots(figsize=(10, 6))
+    sns.lineplot(
+        data=df_sorted,
+        x="Model ID",
+        y="Score",
+        marker="o",
+        linewidth=2,
+        color="b",
+        markersize=8,
+    )
 
-    df_sorted["Score"].plot(kind="line", marker="o", ax=ax, color="blue")
+    # Add labels and title
+    plt.title("Models ranked by overall performance", size=16, weight="bold")
+    plt.ylabel("Score", fontsize=12)
+    plt.xlabel("Model ID", fontsize=12)
 
-    ax.set_title("Models Ranked by Weighted Score (Lower is Better)")
-    ax.set_ylabel("Weighted Score")
-    ax.set_xlabel("Model ID")
-    plt.xticks(rotation=45, ha="right")
-    plt.grid(True)
+    # Customize ticks
+    plt.xticks(rotation=45, ha="right", fontsize=10)
+    plt.yticks(fontsize=10)
+
+    # Add annotations
+    for i, txt in enumerate(df_sorted["Score"]):
+        plt.text(
+            df_sorted["Model ID"].iloc[i], txt, f"{txt:.2f}", ha="center", va="bottom"
+        )
 
     plt.tight_layout()
-    plt.savefig(output_file)
-    # plt.show()  # Removed this line as it's unnecessary in a non-interactive environment
+    plt.savefig(output_file, dpi=700)
 
 
 def main():
@@ -81,11 +137,11 @@ def main():
     # Load and aggregate the summary data
     combined_df = load_summary_data(summary_files)
 
-    # Plot the comparison line graph
-    plot_comparison_graph(combined_df)
+    # Plot the radar comparison graph
+    plot_radar_chart(combined_df)
 
-    # Plot the winner graph
-    plot_winner_graph(combined_df)
+    # Plot the clean minimalistic line chart for the winner graph
+    plot_winner_line_chart(combined_df)
 
 
 if __name__ == "__main__":
