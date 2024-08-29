@@ -27,12 +27,12 @@ class ModelScorer:
         if not is_json_good:
             return False, False, False
 
-        correct_plugin = benchmark_data["messages"][-2]["expectedPlugins"]
+        correct_plugin = benchmark_data["messages"][-2]["expected_plugins"]
         is_plugin_correct = self.validate_plugin(json_response_from_ai, correct_plugin)
         if not is_plugin_correct:
             return True, False, False
 
-        correct_command = benchmark_data["messages"][-1]["binariesUsed"]
+        correct_command = benchmark_data["messages"][-1]["binaries_used"]
         is_command_running = self.validate_command(
             json_response_from_ai, correct_command
         )
