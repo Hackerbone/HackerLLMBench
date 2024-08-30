@@ -18,20 +18,23 @@ def load_summary_data(file_paths):
 
 
 def plot_radar_chart(df, output_file="model_comparison_radar.png"):
-    """Generate a radar chart comparing Structural Accuracy, Functional Correctness, Consistency, and Avg Response Time."""
+    """Generate a radar chart comparing Structural Accuracy, Functional Correctness, Consistency, and Adjusted Avg Response Time."""
     # Define categories for the radar chart
     categories = [
         "Structural Accuracy",
         "Functional Correctness",
         "Consistency",
-        "Avg Response Time",
+        "Adjusted Response Time",  # Updated label
     ]
     num_vars = len(categories)
 
-    # Normalize Avg Response Time to the 0-1 scale for better comparison
+    # Normalize Avg Response Time to the 0-1 scale
     df["Normalized Response Time"] = (
         df["Avg Response Time"] - df["Avg Response Time"].min()
     ) / (df["Avg Response Time"].max() - df["Avg Response Time"].min())
+
+    # Adjusted Normalized Response Time: Higher response time should result in a lower score
+    df["Adjusted Response Time"] = df["Normalized Response Time"]
 
     # Set seaborn style
     sns.set(style="whitegrid")
@@ -49,7 +52,7 @@ def plot_radar_chart(df, output_file="model_comparison_radar.png"):
             row["Structural Accuracy"],
             row["Functional Correctness"],
             row["Consistency"],
-            row["Normalized Response Time"],
+            row["Adjusted Response Time"],  # Use adjusted response time
         ]
         values += values[:1]  # Repeat the first value to close the circle
 
@@ -72,20 +75,40 @@ def plot_radar_chart(df, output_file="model_comparison_radar.png"):
     # Add legend and save the figure
     plt.legend(loc="upper right", bbox_to_anchor=(1.2, 1))
     plt.tight_layout()
-    plt.savefig(output_file, dpi=300)
+    plt.savefig(output_file, dpi=700)
 
 
-def plot_winner_line_chart(df, output_file="model_winner_line.png"):
-    """Generate a clean and minimalistic line chart showing models ranked by weighted scores using seaborn."""
-    # Normalize Avg Response Time to the 0-1 scale
+def plot_winner_line_chart(df, output_file="model_winner_line_comparison.png"):
+    """Generate a clean and minimalistic line chart showing models ranked by weighted scores with and without normalized response time using seaborn."""
+    # Normalize Avg Response Time to the 0-1 scale (Higher is worse, so we invert it)
     df["Normalized Response Time"] = (
         df["Avg Response Time"] - df["Avg Response Time"].min()
     ) / (df["Avg Response Time"].max() - df["Avg Response Time"].min())
 
-    df["Score"] = (df["Structural Accuracy"] + df["Consistency"]) / 2
+    # Adjusted Normalized Response Time: Higher response time should result in a lower score
+    df["Adjusted Response Time"] = 1 - df["Normalized Response Time"]
 
-    # Sort the DataFrame by the calculated score (ascending, lower scores are better)
-    df_sorted = df.sort_values(by="Score", ascending=True)
+    # Calculate overall score without response time
+    df["Score_Without_Time"] = (
+        df["Structural Accuracy"] + df["Consistency"] + df["Functional Correctness"]
+    ) / 3
+
+    # Calculate overall score with adjusted response time
+    df["Score_With_Time"] = (
+        df["Structural Accuracy"]
+        + df["Consistency"]
+        + df["Functional Correctness"]
+        + df["Adjusted Response Time"]
+    ) / 4
+
+    # Save the calculated scores to CSV
+    df[["Model ID", "Score_Without_Time", "Score_With_Time"]].to_csv(
+        "scores/model_scores.csv", index=False
+    )
+
+    # Sort the DataFrame by the calculated scores
+    df_sorted_without_time = df.sort_values(by="Score_Without_Time", ascending=True)
+    df_sorted_with_time = df.sort_values(by="Score_With_Time", ascending=True)
 
     # Set a seaborn style
     sns.set(style="whitegrid")  # Set a minimalistic style
@@ -93,19 +116,35 @@ def plot_winner_line_chart(df, output_file="model_winner_line.png"):
     # Prepare line chart data
     plt.figure(figsize=(10, 6))
 
-    # Plotting the sorted DataFrame as a line graph
+    # Plotting the sorted DataFrame as line graphs
     sns.lineplot(
-        data=df_sorted,
+        data=df_sorted_without_time,
         x="Model ID",
-        y="Score",
+        y="Score_Without_Time",
         marker="o",
         linewidth=2,
         color="b",
         markersize=8,
+        label="Without Normalized Time",
+    )
+
+    sns.lineplot(
+        data=df_sorted_with_time,
+        x="Model ID",
+        y="Score_With_Time",
+        marker="o",
+        linewidth=2,
+        color="r",
+        markersize=8,
+        label="With Adjusted Normalized Time",
     )
 
     # Add labels and title
-    plt.title("Models ranked by overall performance", size=16, weight="bold")
+    plt.title(
+        "Models ranked by overall performance",
+        size=16,
+        weight="bold",
+    )
     plt.ylabel("Score", fontsize=12)
     plt.xlabel("Model ID", fontsize=12)
 
@@ -113,11 +152,105 @@ def plot_winner_line_chart(df, output_file="model_winner_line.png"):
     plt.xticks(rotation=45, ha="right", fontsize=10)
     plt.yticks(fontsize=10)
 
-    # Add annotations
-    for i, txt in enumerate(df_sorted["Score"]):
+    # Add annotations for both lines
+    for i, txt in enumerate(df_sorted_without_time["Score_Without_Time"]):
         plt.text(
-            df_sorted["Model ID"].iloc[i], txt, f"{txt:.2f}", ha="center", va="bottom"
+            df_sorted_without_time["Model ID"].iloc[i],
+            txt,
+            f"{txt:.2f}",
+            ha="center",
+            va="bottom",
         )
+    for i, txt in enumerate(df_sorted_with_time["Score_With_Time"]):
+        plt.text(
+            df_sorted_with_time["Model ID"].iloc[i],
+            txt,
+            f"{txt:.2f}",
+            ha="center",
+            va="top",
+        )
+
+    # Show legend
+    plt.legend()
+
+    plt.tight_layout()
+    plt.savefig(output_file, dpi=700)
+
+
+def generate_winner_graph_from_csv(
+    input_file="scores/model_scores.csv", output_file="winner_graph_from_csv.png"
+):
+    """Generate a clean and minimalistic line chart showing models ranked by weighted scores from model_scores.csv."""
+
+    # Load the data from CSV
+    df = pd.read_csv(input_file)
+
+    # Sort the DataFrame by the calculated scores
+    df_sorted_without_time = df.sort_values(by="Score_Without_Time", ascending=True)
+    df_sorted_with_time = df.sort_values(by="Score_With_Time", ascending=True)
+
+    # Set a seaborn style
+    sns.set(style="whitegrid")  # Set a minimalistic style
+
+    # Prepare line chart data
+    plt.figure(figsize=(10, 6))
+
+    # Plotting the sorted DataFrame as line graphs
+    sns.lineplot(
+        data=df_sorted_without_time,
+        x="Model ID",
+        y="Score_Without_Time",
+        marker="o",
+        linewidth=2,
+        color="b",
+        markersize=8,
+        label="Without Normalized Time",
+    )
+
+    sns.lineplot(
+        data=df_sorted_with_time,
+        x="Model ID",
+        y="Score_With_Time",
+        marker="o",
+        linewidth=2,
+        color="r",
+        markersize=8,
+        label="With Adjusted Normalized Time",
+    )
+
+    # Add labels and title
+    plt.title(
+        "Models ranked by overall performance",
+        size=16,
+        weight="bold",
+    )
+    plt.ylabel("Score", fontsize=12)
+    plt.xlabel("Model ID", fontsize=12)
+
+    # Customize ticks
+    plt.xticks(rotation=45, ha="right", fontsize=10)
+    plt.yticks(fontsize=10)
+
+    # Add annotations for both lines
+    for i, txt in enumerate(df_sorted_without_time["Score_Without_Time"]):
+        plt.text(
+            df_sorted_without_time["Model ID"].iloc[i],
+            txt,
+            f"{txt:.2f}",
+            ha="center",
+            va="bottom",
+        )
+    for i, txt in enumerate(df_sorted_with_time["Score_With_Time"]):
+        plt.text(
+            df_sorted_with_time["Model ID"].iloc[i],
+            txt,
+            f"{txt:.2f}",
+            ha="center",
+            va="top",
+        )
+
+    # Show legend
+    plt.legend()
 
     plt.tight_layout()
     plt.savefig(output_file, dpi=700)
@@ -131,7 +264,7 @@ def main():
     summary_files = [
         os.path.join(summary_dir, f)
         for f in os.listdir(summary_dir)
-        if f.endswith("_summary.csv")
+        if f.endswith("_summary.csv") and not f.startswith("mistral")
     ]
 
     # Load and aggregate the summary data
@@ -142,6 +275,8 @@ def main():
 
     # Plot the clean minimalistic line chart for the winner graph
     plot_winner_line_chart(combined_df)
+
+    # generate_winner_graph_from_csv() # uncomment to generate the winner graph from model_scores.csv
 
 
 if __name__ == "__main__":

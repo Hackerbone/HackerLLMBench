@@ -580,9 +580,10 @@ def main():
         # OpenAIScorer(api_key=config.get("openai_api_key"), model_id="gpt-4o-mini"),
         # OpenAIScorer(api_key=config.get("openai_api_key"), model_id="gpt-3.5-turbo"),
         # OpenAIScorer(api_key=config.get("openai_api_key"), model_id="gpt-4o"),
-        # MistralInstructScorer(
-        #     endpoint_url=config.get("mistral_instruct_endpoint"), model_id="ft-8"
-        # ),
+        MistralInstructScorer(
+            endpoint_url=config.get("mistral_instruct_endpoint"),
+            model_id="mistral-7ep",
+        ),
     ]
 
     for scorer in scorers:
