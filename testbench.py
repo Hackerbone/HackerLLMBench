@@ -10,7 +10,8 @@ from logger import Logger
 from jsonschema import validate
 from jsonschema.exceptions import ValidationError
 from openai import OpenAI
-
+from langchain_groq import ChatGroq
+from typing import Tuple, Dict, Any
 
 class ModelScorer:
     model_id = None
@@ -549,6 +550,79 @@ class CustomModelScorer(ModelScorer):
         return model_response, end_time - start_time
 
 
+class GroqInferenceScorer(ModelScorer):
+    def __init__(
+        self,
+        api_key: str,
+        model_id: str = "llama-3.1-70b-versatile",  # Default Groq model
+        model_type: str = "groq",
+        temperature: float = 0.7,
+        max_tokens: int = 1024,
+    ):
+        """
+        Initialize the GroqInferenceScorer with Groq API credentials and model parameters.
+
+        Args:
+            api_key (str): Groq API key
+            model_id (str): Groq model identifier (e.g., "llama-3.1-70b-versatile", "mixtral-8x7b-32768")
+            model_type (str): Type of model for scoring purposes
+            temperature (float): Temperature for generation
+            max_tokens (int): Maximum tokens to generate
+        """
+        self.client = ChatGroq(
+            groq_api_key=api_key,
+            model_name=model_id,
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+        self.model_id = model_id
+        self.model_type = model_type
+        self.temperature = temperature
+        self.max_tokens = max_tokens
+
+    def process_with_model(self, benchmark_data: Dict[str, Any]) -> Tuple[str, float]:
+        """
+        Process the benchmark data using the Groq model via LangChain.
+
+        Args:
+            benchmark_data (dict): Benchmark data containing messages
+
+        Returns:
+            Tuple[str, float]: Model response and time taken
+        """
+        system_prompt = benchmark_data["messages"][0]["content"]
+        user_prompt = benchmark_data["messages"][1]["content"]
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"The description is {user_prompt}"},
+        ]
+
+        try:
+            Logger.info(f"[*] Running Groq model: {self.model_id}")
+            start_time = time.time()
+
+            # Invoke the Groq model through LangChain
+            response = self.client.invoke(
+                messages, response_format={"type": "json_object"}  # Ensure JSON output
+            )
+
+            end_time = time.time()
+            response_time = end_time - start_time
+
+            # Extract the content from the response
+            model_response = response.content
+
+            Logger.info(f"[*] Response from Groq model: {model_response}")
+            return model_response, response_time
+
+        except Exception as e:
+            Logger.error(
+                f"[X] Error processing with Groq model {self.model_id}: {str(e)}"
+            )
+            return None, None
+
+
 def load_config(config_path):
     with open(config_path, "r") as config_file:
         config = yaml.safe_load(config_file)
@@ -579,11 +653,17 @@ def main():
         # OpenAIScorer(api_key=config.get("openai_api_key"), model_id="gpt-4-turbo"),
         # OpenAIScorer(api_key=config.get("openai_api_key"), model_id="gpt-4o-mini"),
         # OpenAIScorer(api_key=config.get("openai_api_key"), model_id="gpt-3.5-turbo"),
-        # OpenAIScorer(api_key=config.get("openai_api_key"), model_id="gpt-4o"),
-        MistralInstructScorer(
-            endpoint_url=config.get("mistral_instruct_endpoint"),
-            model_id="mistral-7ep",
-        ),
+        OpenAIScorer(api_key=config.get("openai_api_key"), model_id="gpt-4o"),
+        # MistralInstructScorer(
+        #     endpoint_url=config.get("mistral_instruct_endpoint"),
+        #     model_id="mistral-7ep",
+        # ),
+        # GroqInferenceScorer(
+        #     api_key=config.get("groq_api_key"), model_id="llama-3.1-70b-versatile"
+        # ),
+        # GroqInferenceScorer(
+        #     api_key=config.get("groq_api_key"), model_id="mixtral-8x7b-32768"
+        # ),
     ]
 
     for scorer in scorers:

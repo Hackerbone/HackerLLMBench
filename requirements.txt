@@ -7,3 +7,6 @@ colorlog
 matplotlib
 pandas
 numpy
+seaborn
+langchain
+langchain-groq

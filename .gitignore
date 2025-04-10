@@ -5,3 +5,6 @@ venv/
 scores/
 __pycache__/
 *.png
+.python-version
+
+**/*.DS_Store
