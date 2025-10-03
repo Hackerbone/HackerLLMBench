@@ -1,0 +1,177 @@
+# Improved Configuration for Benchmarking All Models
+# Replace ngrok URLs with your actual endpoints
+
+# Evaluation settings
+testing_file: "evaluation/combined.jsonl"
+output_dir: "scores"
+log_file: "improved_testbench.log"
+
+# Model configurations - add all your models here
+models:
+  # ===== LLAMA 3.1 8B =====
+  # - model_id: "llama-3.1-8b-base"
+  #   model_type: "llama-3.1-8b-base"
+  #   endpoint: "YOUR_LLAMA_BASE_NGROK_URL/v1/chat/completions"
+  #   temperature: 0.7
+  #   max_tokens: 1024
+  #   json_mode: true
+  #   enabled: false  # Set to true when ready
+  #   custom_payload: {}
+
+  # - model_id: "llama-3.1-8b-finetuned"
+  #   model_type: "llama-3.1-8b-finetuned"
+  #   endpoint: "YOUR_LLAMA_FT_NGROK_URL/v1/chat/completions"
+  #   temperature: 0.7
+  #   max_tokens: 1024
+  #   json_mode: true
+  #   enabled: false
+  #   custom_payload: {}
+
+  # - model_id: "llama-3.1-8b-finetuned-600-steps"
+  #   model_type: "llama-3.1-8b-finetuned-600-steps"
+  #   endpoint: "YOUR_LLAMA_CKPT_NGROK_URL/v1/chat/completions"
+  #   temperature: 0.7
+  #   max_tokens: 1024
+  #   json_mode: true
+  #   enabled: false
+  #   custom_payload:
+  #     merged_tag: "checkpoint-600-merged"
+
+  # - model_id: "llama-3.1-8b-finetuned-750-steps"
+  #   model_type: "llama-3.1-8b-finetuned-750-steps"
+  #   endpoint: "YOUR_LLAMA_CKPT_NGROK_URL/v1/chat/completions"
+  #   temperature: 0.7
+  #   max_tokens: 1024
+  #   json_mode: true
+  #   enabled: false
+  #   custom_payload:
+  #     merged_tag: "checkpoint-750-merged"
+
+  # ===== GEMMA 3 12B =====
+  - model_id: "gemma-3-12b-base"
+    model_type: "gemma-3-12b-base"
+    endpoint: "https://5eda5082011a.ngrok-free.app/v1/chat/completions"
+    temperature: 1.0
+    max_tokens: 1024
+    json_mode: true
+    enabled: false
+    custom_payload:
+      top_k: 64
+
+  - model_id: "gemma-3-12b-finetuned"
+    model_type: "gemma-3-12b-finetuned"
+    endpoint: "https://b89b67e6799e.ngrok-free.app/v1/chat/completions"
+    temperature: 1.0
+    max_tokens: 1024
+    json_mode: true
+    enabled: true
+    custom_payload:
+      top_k: 64
+
+  # - model_id: "gemma-3-12b-finetuned-800-steps"
+  #   model_type: "gemma-3-12b-finetuned-800-steps"
+  #   endpoint: "YOUR_GEMMA_CKPT_NGROK_URL/v1/chat/completions"
+  #   temperature: 1.0
+  #   max_tokens: 1024
+  #   json_mode: true
+  #   enabled: false
+  #   custom_payload:
+  #     merged_tag: "checkpoint-800-merged"
+  #     top_k: 64
+
+  # - model_id: "gemma-3-12b-finetuned-850-steps"
+  #   model_type: "gemma-3-12b-finetuned-850-steps"
+  #   endpoint: "YOUR_GEMMA_CKPT_NGROK_URL/v1/chat/completions"
+  #   temperature: 1.0
+  #   max_tokens: 1024
+  #   json_mode: true
+  #   enabled: false
+  #   custom_payload:
+  #     merged_tag: "checkpoint-850-merged"
+  #     top_k: 64
+
+  # # ===== QWEN3 14B =====
+  # - model_id: "qwen3-14b-base"
+  #   model_type: "qwen3-14b-base"
+  #   endpoint: "https://df1fecaf3650.ngrok-free.app/v1/chat/completions"
+  #   temperature: 0.7
+  #   max_tokens: 1024
+  #   json_mode: true
+  #   enabled: true  # Currently active
+  #   custom_payload:
+  #     top_k: 20
+
+  # - model_id: "qwen3-14b-finetuned"
+  #   model_type: "qwen3-14b-finetuned"
+  #   endpoint: "https://fc8487574bc0.ngrok-free.app/v1/chat/completions"
+  #   temperature: 0.7
+  #   max_tokens: 1024
+  #   json_mode: true
+  #   enabled: true  # Currently active
+  #   custom_payload:
+  #     top_k: 20
+
+  # - model_id: "qwen3-14b-finetuned-800-steps"
+  #   model_type: "qwen3-14b-finetuned-800-steps"
+  #   endpoint: "https://c2446cadd3ef.ngrok-free.app/v1/chat/completions"
+  #   temperature: 0.7
+  #   max_tokens: 1024
+  #   json_mode: true
+  #   enabled: true
+  #   custom_payload:
+  #     merged_tag: "checkpoint-800-merged"
+  #     top_k: 20
+
+  # - model_id: "qwen3-14b-finetuned-850-steps"
+  #   model_type: "qwen3-14b-finetuned-850-steps"
+  #   endpoint: "https://c2446cadd3ef.ngrok-free.app/v1/chat/completions"
+  #   temperature: 0.7
+  #   max_tokens: 1024
+  #   json_mode: true
+  #   enabled: true
+  #   custom_payload:
+  #     merged_tag: "checkpoint-850-merged"
+  #     top_k: 20
+
+  # # ===== GPT-OSS 20B =====
+  # - model_id: "gpt-oss-20b-base"
+  #   model_type: "gpt-oss-20b-base"
+  #   endpoint: "YOUR_GPT_OSS_BASE_NGROK_URL/v1/chat/completions"
+  #   temperature: 1.0
+  #   max_tokens: 1024
+  #   json_mode: true
+  #   enabled: false
+  #   custom_payload:
+  #     reasoning_effort: null  # Disable reasoning for faster responses
+
+  # - model_id: "gpt-oss-20b-finetuned"
+  #   model_type: "gpt-oss-20b-finetuned"
+  #   endpoint: "YOUR_GPT_OSS_FT_NGROK_URL/v1/chat/completions"
+  #   temperature: 1.0
+  #   max_tokens: 1024
+  #   json_mode: true
+  #   enabled: false
+  #   custom_payload:
+  #     reasoning_effort: null
+
+  # - model_id: "gpt-oss-20b-finetuned-800-steps"
+  #   model_type: "gpt-oss-20b-finetuned-800-steps"
+  #   endpoint: "YOUR_GPT_OSS_CKPT_NGROK_URL/v1/chat/completions"
+  #   temperature: 1.0
+  #   max_tokens: 1024
+  #   json_mode: true
+  #   enabled: false
+  #   custom_payload:
+  #     merged_tag: "checkpoint-800-merged"
+  #     reasoning_effort: null
+
+  # - model_id: "gpt-oss-20b-finetuned-850-steps"
+  #   model_type: "gpt-oss-20b-finetuned-850-steps"
+  #   endpoint: "YOUR_GPT_OSS_CKPT_NGROK_URL/v1/chat/completions"
+  #   temperature: 1.0
+  #   max_tokens: 1024
+  #   json_mode: true
+  #   enabled: false
+  #   custom_payload:
+  #     merged_tag: "checkpoint-850-merged"
+  #     reasoning_effort: null
